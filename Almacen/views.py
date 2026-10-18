@@ -1082,6 +1082,7 @@ def lista_productos(
 ):  
     lista_productos = Productos.objects.all().order_by(
         '-IDproducto'
+        
 )  
     paginator = Paginator(lista_productos, 7)
     page_number = request.GET.get('page')
@@ -1091,3 +1092,23 @@ def lista_productos(
         'productos': productos,  
     }
     return render(request, 'tu_app/productos.html', context)
+    from .modelos import Descuento, Promocion
+from django.utils import timezone
+
+# --- MI LOGICA DE PROMO ---
+def aplicar_descuento(producto):
+    hoy = timezone.now().date()
+    desc = Descuento.objects.filter(activo=True, producto=producto, fecha_inicio__lte=hoy, fecha_fin__gte=hoy).first()
+    if not desc:
+        desc = Descuento.objects.filter(activo=True, categoria_nombre=producto.categoria, fecha_inicio__lte=hoy, fecha_fin__gte=hoy).first()
+    if desc and desc.esta_vigente():
+        return float(producto.precio) * (1 - desc.porcentaje / 100)
+    return float(producto.precio)
+
+def verificar_regalo_por_tapas(id_producto_tapa, cantidad_comprada):
+    hoy = timezone.now().date()
+    promos = Promocion.objects.filter(activa=True, producto_requisito_id=id_producto_tapa, fecha_inicio__lte=hoy, fecha_fin__gte=hoy)
+    for promo in promos:
+        if cantidad_comprada >= promo.cantidad_requisito:
+            return promo.producto_regalo
+    return None
