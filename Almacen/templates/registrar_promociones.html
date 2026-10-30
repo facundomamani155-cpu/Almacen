@@ -1,0 +1,23 @@
+{% extends 'plantillas.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow p-4">
+        <h2>Registrar Promociones</h2>
+        <hr>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="nombre_promo" class="form-label">Nombre de la Promoción</label>
+                <input type="text" class="form-control" id="nombre_promo" name="nombre_promo" placeholder="Ej. Promo Táperes x 3">
+            </div>
+            <div class="mb-3">
+                <label for="requisitos" class="form-label">Requisitos / Condición</label>
+                <textarea class="form-control" id="requisitos" name="requisitos" rows="3" placeholder="Ej. Lleva 3 unidades y paga una cantidad especial..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">Guardar Promoción</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1089,3 +1089,10 @@ def generar_comprobante_pdf(request, id_venta):
     response = HttpResponse(buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="Comprobante_Venta_{venta.id_ventas}.pdf"'
     return response
+from django.shortcuts import render
+
+def registrar_promociones(request):
+    return render(request, 'registrar_promociones.html')
+
+def registrar_descuento(request):
+    return render(request, 'registrar_descuento.html')

@@ -42,4 +42,7 @@ urlpatterns = [
     path('caja/abrir/', views.abrir_caja, name='abrir_caja'),
     path('caja/cerrar/', views.cerrar_caja, name='cerrar_caja'),
     path('caja/forzar-cierre/<int:id_caja>/', views.forzar_cierre_caja, name='forzar_cierre_caja'),
+ path('promociones/registrar/', views.registrar_promociones, name='registrar_promociones'),
+path('descuentos/registrar/', views.registrar_descuento, name='registrar_descuento'),   
 ]
+

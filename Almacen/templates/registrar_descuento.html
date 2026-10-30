@@ -1,0 +1,23 @@
+{% extends 'plantillas.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow p-4">
+        <h2>Registrar Descuento</h2>
+        <hr>
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="nombre_descuento" class="form-label">Nombre del Descuento</label>
+                <input type="text" class="form-control" id="nombre_descuento" name="nombre_descuento" placeholder="Ej. Descuento de Verano">
+            </div>
+            <div class="mb-3">
+                <label for="porcentaje" class="form-label">Porcentaje de Descuento (%)</label>
+                <input type="number" class="form-control" id="porcentaje" name="porcentaje" placeholder="Ej. 30">
+            </div>
+            <button type="submit" class="btn btn-primary">Guardar Descuento</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

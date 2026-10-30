@@ -49,20 +49,6 @@
                     <div class="text-box">Procesar Venta</div>
                 </a>
 
-                <a href="#" class="menu-btn">
-                    <div class="icon-box">
-                        <i class="fa-solid fa-tags"></i>
-                    </div>
-                    <div class="text-box">Registrar descuento</div>
-                </a>
-
-                <a href="#" class="menu-btn">
-                    <div class="icon-box">
-                        <i class="fa-solid fa-bullhorn"></i>
-                    </div>
-                    <div class="text-box">Registrar Promociones</div>
-                </a>
-
                 <a href="{% url 'cuentas_clientes' %}" class="menu-btn">
                     <div class="icon-box">
                         <i class="fa-solid fa-users"></i>
@@ -75,6 +61,21 @@
                         <i class="fa-sharp fa-solid fa-cash-register"></i>
                     </div>
                     <div class="text-box">Caja</div>
+                </a>
+
+                <!-- Botones habilitados de Promociones y Descuentos -->
+                <a href="{% url 'registrar_promociones' %}" class="menu-btn">
+                    <div class="icon-box">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <div class="text-box">Registrar Promociones</div>
+                </a>
+
+                <a href="{% url 'registrar_descuento' %}" class="menu-btn">
+                    <div class="icon-box">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <div class="text-box">Registrar descuento</div>
                 </a>
             {% endif %}
         </div>
