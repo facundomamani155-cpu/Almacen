@@ -133,7 +133,7 @@
         </table>
     </div>
 
-<<<<<<< HEAD
+
     {% if page_obj.paginator.num_pages > 1 %}
     <nav class="mt-3" aria-label="Paginación de productos">
         <ul class="pagination justify-content-center flex-wrap mb-0">
@@ -183,7 +183,6 @@
             {% else %}
                 <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
             {% endif %}
->>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
         </ul>
     </nav>
     {% endif %}
@@ -235,6 +234,17 @@
             borrarBtn.disabled = selectedIds.size === 0;
             borrarBtn.classList.toggle('opacity-50', selectedIds.size === 0);
         }
-    });
+
+ {% verbatim %}
+ <script>
+    document.addEventListener('click', function (event) {
+        const input = document.getElementById('selectedIdsInput');
+        const borrarBtn = document.getElementById('btnEliminarMarcados');
+        if (input) input.value = Array.from(selectedIds).join(',');
+        if (borrarBtn) {
+            borrarBtn.disabled = selectedIds.size === 0;
+            borrarBtn.classList.toggle('opacity-50', selectedIds.size === 0);
+        
+    );
 </script>
-{% endblock %}
+{% endverbatim %}

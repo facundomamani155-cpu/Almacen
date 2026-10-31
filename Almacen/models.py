@@ -254,3 +254,21 @@ class Pago(models.Model):
 
     def __str__(self):
         return f"Pago de {self.cliente.nombre} - ${self.monto} - {self.fecha.strftime('%d/%m/%Y')}"
+    
+class Descuento(models.Model):
+     porcentaje = models.DecimalField(max_digits=5, decimal_places=2)
+     activo = models.BooleanField(default=True)
+     fecha_inicio = models.DateField()
+     fecha_fin = models.DateField()
+
+     def esta_vigente(self):
+        from django.utils import timezone
+        hoy = timezone.now().date()
+        return self.fecha_inicio <= hoy <= self.fecha_fin
+
+class Promocion(models.Model):
+    nombre = models.CharField(max_length=100)
+    activa = models.BooleanField(default=True)
+    cantidad_requisito = models.PositiveIntegerField(default=1)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()

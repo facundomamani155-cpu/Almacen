@@ -23,7 +23,8 @@ from django.core.paginator import Paginator
 
 from .models import (
     Productos, Proveedor, Usuario, Perfil, Ventas, DetallesVentas,
-    Compras, DetallesCompra, LotesProducto, Clientes, Caja, Pago
+    Compras, DetallesCompra, LotesProducto, Clientes, Caja, Pago, 
+    Descuento, Promocion
 )
 
 # =======================================================
@@ -96,11 +97,9 @@ def consultar(request):
         productos = productos.filter(nombre__icontains=busqueda)
 
     has_inactive_products = productos.filter(estado='inactivo').exists()
-<<<<<<< HEAD
     page_obj = Paginator(productos, 7).get_page(request.GET.get('page'))
-=======
     productos = Paginator(productos, 7).get_page(request.GET.get('page'))
->>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
+
 
     return render(request, "productos.html", {
         'productos': page_obj,
@@ -153,8 +152,7 @@ def cambiar_estado(request, id):
 
 
 @login_required
-<<<<<<< HEAD
-=======
+
 @requiere_perfil('Administrador', 'Vendedor')
 def ventas(request):
     if request.user.debe_cambiar_clave:
@@ -341,7 +339,6 @@ def cambiar_estado_venta(request, id_venta):
 
 
 @login_required
->>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
 def detalle(request, id):
     producto = get_object_or_404(Productos, pk=id)
     return render(request, "productoEditar.html", {
@@ -1289,10 +1286,10 @@ from django.shortcuts import render
 def registrar_promociones(request):
     return render(request, 'registrar_promociones.html')
 
-<<<<<<< HEAD
+
 def registrar_descuento(request):
     return render(request, 'registrar_descuento.html')
-=======
+
 @login_required
 def cuentas_clientes(request):
     clientes = Clientes.objects.all()
@@ -1546,4 +1543,4 @@ def verificar_regalo_por_tapas(id_producto_tapa, cantidad_comprada):
         if cantidad_comprada >= promo.cantidad_requisito:
             return promo.producto_regalo
     return None
->>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
+
