@@ -12,12 +12,14 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash, logout, authenticate, login
-from django.db.models import Max, Sum, Q
+from django.db.models import Max, Sum, Q, OuterRef, Subquery, IntegerField, Value
+from django.db.models.functions import Coalesce
 from django.db import transaction
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from functools import wraps
+from django.core.paginator import Paginator
 
 from .models import (
     Productos, Proveedor, Usuario, Perfil, Ventas, DetallesVentas,
@@ -94,7 +96,11 @@ def consultar(request):
         productos = productos.filter(nombre__icontains=busqueda)
 
     has_inactive_products = productos.filter(estado='inactivo').exists()
+<<<<<<< HEAD
     page_obj = Paginator(productos, 7).get_page(request.GET.get('page'))
+=======
+    productos = Paginator(productos, 7).get_page(request.GET.get('page'))
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
 
     return render(request, "productos.html", {
         'productos': page_obj,
@@ -147,6 +153,195 @@ def cambiar_estado(request, id):
 
 
 @login_required
+<<<<<<< HEAD
+=======
+@requiere_perfil('Administrador', 'Vendedor')
+def ventas(request):
+    if request.user.debe_cambiar_clave:
+        return redirect('cambiar_clave')
+
+    hoy = timezone.now().date()
+    periodo = request.GET.get('filtro', 'todos')
+
+    ventas_qs = Ventas.objects.prefetch_related('detalles__producto').order_by('-fecha', '-hora')
+
+    if periodo == 'semana':
+        desde = hoy - timezone.timedelta(days=7)
+        ventas_qs = ventas_qs.filter(fecha__gte=desde)
+    elif periodo == 'mes':
+        desde = hoy - timezone.timedelta(days=30)
+        ventas_qs = ventas_qs.filter(fecha__gte=desde)
+    elif periodo in ('anio', 'año'):
+        desde = hoy - timezone.timedelta(days=365)
+        ventas_qs = ventas_qs.filter(fecha__gte=desde)
+
+    ventas_paginadas = Paginator(ventas_qs, 7).get_page(request.GET.get('page'))
+    fecha_limite = hoy.replace(year=hoy.year - 1)
+    return render(request, 'Gstion_Ventas.html', {
+        'ventas': ventas_paginadas,
+        'fecha_limite': fecha_limite,
+        'periodo': periodo,
+    })
+
+
+@login_required
+@requiere_perfil('Administrador', 'Vendedor')
+def registrar_venta(request):
+    # Verificar si hay una caja abierta
+    caja_activa = Caja.objects.filter(estado='abierta').last()
+
+    if request.method == 'POST':
+        if not caja_activa:
+            messages.error(request, 'No hay ninguna caja abierta. Debe abrir caja antes de registrar ventas.')
+            return redirect('gestion_caja')
+
+        try:
+            cart_data = request.POST.get('cart_data', '[]')
+            fiado = request.POST.get('fiado') == 'true'
+            id_cliente_post = request.POST.get('id_cliente')
+            items = json.loads(cart_data)
+
+            if not items:
+                messages.error(request, 'El carrito está vacío.')
+                return redirect('registrar_venta')
+
+            id_cliente_final = int(id_cliente_post) if (fiado and id_cliente_post) else 0
+
+            with transaction.atomic():
+                estado_pago = 'Fiado' if fiado else 'Pagado'
+                ahora = datetime.now()
+
+                ultimo_id_venta = Ventas.objects.aggregate(Max('id_ventas'))['id_ventas__max'] or 0
+                nuevo_id_venta = ultimo_id_venta + 1
+
+                venta = Ventas.objects.create(
+                    id_ventas=nuevo_id_venta,
+                    id_caja=caja_activa.id_caja,
+                    total=Decimal('0.00'),
+                    fecha=date.today(),
+                    hora=ahora.time(),
+                    id_clientes=id_cliente_final,
+                    estado_de_pago=estado_pago
+                )
+
+                total_venta = Decimal('0.00')
+                ultimo_id_detalle = DetallesVentas.objects.aggregate(Max('id_detalles_ventas'))['id_detalles_ventas__max'] or 0
+
+                for item in items:
+                    producto = get_object_or_404(Productos, pk=item['id'])
+                    cantidad_necesaria = int(item['cantidad'])
+                    precio_unitario = Decimal(str(item['precio']))
+
+                    if producto.stock < cantidad_necesaria:
+                        raise ValueError(f'Stock insuficiente para "{producto.nombre}". Disponible: {producto.stock}')
+
+                    subtotal = cantidad_necesaria * precio_unitario
+                    ultimo_id_detalle += 1
+
+                    DetallesVentas.objects.create(
+                        id_detalles_ventas=ultimo_id_detalle,
+                        venta=venta,
+                        producto=producto,
+                        cantidad=cantidad_necesaria,
+                        precio_unitario_compra=precio_unitario,
+                        subtotal=subtotal
+                    )
+
+                    lotes = LotesProducto.objects.filter(
+                        id_producto=producto,
+                        activo=True,
+                        stock_actual__gt=0
+                    ).order_by('fecha_vencimiento', 'id')
+
+                    pendiente = cantidad_necesaria
+                    for lote in lotes:
+                        if pendiente <= 0:
+                            break
+
+                        if lote.stock_actual >= pendiente:
+                            lote.stock_actual -= pendiente
+                            pendiente = 0
+                        else:
+                            pendiente -= lote.stock_actual
+                            lote.stock_actual = 0
+                        
+                        lote.save()
+
+                    total_venta += subtotal
+
+                venta.total = total_venta
+                venta.save()
+
+            messages.success(request, f'Venta #{venta.id_ventas} registrada exitosamente.')
+            return redirect('ventas')
+
+        except Exception as e:
+            messages.error(request, f'Error al registrar la venta: {str(e)}')
+            return redirect('registrar_venta')
+
+    # GET
+    if not caja_activa:
+        messages.warning(request, 'Atención: Debe abrir la caja para poder cobrar ventas.')
+
+    detalles_ventas_producto = (
+        DetallesVentas.objects
+        .filter(producto_id=OuterRef('pk'))
+        .exclude(venta__estado_de_pago__iexact='anulado')
+        .values('producto_id')
+        .annotate(total_vendido=Sum('cantidad'))
+        .values('total_vendido')
+    )
+    productos_qs = Productos.objects.filter(
+        estado='activo',
+        lotes__activo=True,
+        lotes__stock_actual__gt=0,
+    ).distinct()
+    orden = request.GET.get('orden') == 'mas_vendidos'
+    if orden:
+        productos_qs = productos_qs.annotate(
+            total_vendido=Coalesce(
+                Subquery(detalles_ventas_producto, output_field=IntegerField()),
+                Value(0),
+            )
+        ).order_by('-total_vendido', 'nombre')
+    else:
+        productos_qs = productos_qs.order_by('nombre')
+
+    productos_paginados = Paginator(productos_qs, 7)
+    productos = productos_paginados.get_page(request.GET.get('page'))
+    categorias = Productos.objects.filter(estado='activo').values_list('categoria', flat=True).distinct()
+    clientes = Clientes.objects.all().order_by('nombre')
+
+    return render(request, 'Registro_ventas.html', {
+        'productos': productos,
+        'categorias': categorias,
+        'clientes': clientes,
+        'caja_activa': caja_activa,
+        'orden': 'mas_vendidos' if orden else '',
+    })
+
+
+@login_required
+def cambiar_estado_venta(request, id_venta):
+    if request.method != 'POST':
+        return redirect('ventas')
+
+    venta = get_object_or_404(Ventas, pk=id_venta)
+    nuevo_estado = request.POST.get('estado_de_pago', '').strip()
+    estados_validos = ['pagado', 'fiado']
+
+    if nuevo_estado not in estados_validos:
+        messages.error(request, 'Estado de pago no válido.')
+        return redirect('ventas')
+
+    venta.estado_de_pago = nuevo_estado
+    venta.save()
+    messages.success(request, f'Venta #{id_venta} actualizada a "{nuevo_estado.capitalize()}".')
+    return redirect('ventas')
+
+
+@login_required
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
 def detalle(request, id):
     producto = get_object_or_404(Productos, pk=id)
     return render(request, "productoEditar.html", {
@@ -1094,5 +1289,261 @@ from django.shortcuts import render
 def registrar_promociones(request):
     return render(request, 'registrar_promociones.html')
 
+<<<<<<< HEAD
 def registrar_descuento(request):
     return render(request, 'registrar_descuento.html')
+=======
+@login_required
+def cuentas_clientes(request):
+    clientes = Clientes.objects.all()
+    lista_cuentas = []
+
+    for cliente in clientes:
+        ventas_pendientes = Ventas.objects.filter(
+            id_clientes=cliente.id_clientes
+        ).filter(
+            Q(estado_de_pago__iexact='fiado') | 
+            Q(estado_de_pago__iexact='pendiente') |
+            Q(estado_de_pago__iexact='abono_parcial') |
+            Q(estado_de_pago__iexact='abono parcial')
+        ).order_by('fecha', 'hora')
+
+        saldo_total = ventas_pendientes.aggregate(total=Sum('total'))['total'] or 0.0
+
+        lista_cuentas.append({
+            'cliente': cliente,
+            'saldo_total': saldo_total,
+            'ventas_pendientes': ventas_pendientes,
+            'cantidad_ventas': ventas_pendientes.count()
+        })
+
+    return render(request, 'cuentas_clientes.html', {'cuentas': lista_cuentas})
+
+
+@login_required
+@requiere_perfil('Administrador', 'Vendedor')
+def registrar_pago_cliente(request, id_cliente):
+    if request.method == 'POST':
+        cliente = get_object_or_404(Clientes, pk=id_cliente)
+        
+        try:
+            monto_pago = Decimal(request.POST.get('monto', '0.00'))
+        except Exception:
+            monto_pago = Decimal('0.00')
+
+        if monto_pago <= Decimal('0.00'):
+            messages.error(request, 'El monto a abonar debe ser mayor a 0.')
+            return redirect('cuentas_clientes')
+
+        try:
+            with transaction.atomic():
+                ventas_pendientes = Ventas.objects.filter(
+                    id_clientes=cliente.id_clientes
+                ).filter(
+                    Q(estado_de_pago__iexact='fiado') | 
+                    Q(estado_de_pago__iexact='pendiente') |
+                    Q(estado_de_pago__iexact='abono_parcial') |
+                    Q(estado_de_pago__iexact='abono parcial')
+                ).order_by('fecha', 'hora')
+
+                monto_restante = monto_pago
+
+                for venta in ventas_pendientes:
+                    if monto_restante <= Decimal('0.00'):
+                        break
+
+                    venta_total = Decimal(str(venta.total))
+
+                    if monto_restante >= venta_total:
+                        monto_restante -= venta_total
+                        venta.estado_de_pago = 'pagado'
+                        venta.save()
+                    else:
+                        venta.total = venta_total - monto_restante
+                        venta.estado_de_pago = 'abono_parcial'
+                        venta.save()
+                        monto_restante = Decimal('0.00')
+
+                messages.success(request, f'Se registró el pago de ${monto_pago:.2f} para {cliente.nombre}.')
+
+        except Exception as e:
+            messages.error(request, f'Error al registrar el pago: {str(e)}')
+
+    return redirect('cuentas_clientes')
+
+
+@login_required
+def crear_cliente(request):
+    if request.method == 'POST':
+        nombre = request.POST.get('nombre', '').strip()
+        apellido = request.POST.get('apellido', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+
+        if not nombre:
+            messages.error(request, 'El nombre del cliente es obligatorio.')
+            return redirect('cuentas_clientes')
+
+        cliente = Clientes.objects.create(
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono
+        )
+        messages.success(request, f'Cliente "{cliente.nombre} {cliente.apellido or ""}" registrado con éxito.')
+    
+    return redirect('cuentas_clientes')
+
+
+@login_required
+def gestion_caja(request):
+    caja_activa = Caja.objects.filter(estado='abierta').last()
+    historial_cajas = Caja.objects.all().order_by('-fecha_apertura')[:10]
+
+    ventas_caja_efectivo = Decimal('0.00')
+    ventas_caja_fiado = Decimal('0.00')
+    monto_esperado = Decimal('0.00')
+
+    if caja_activa:
+        ventas_efectivo = Ventas.objects.filter(
+            id_caja=caja_activa.id_caja,
+            estado_de_pago__iexact='pagado'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+
+        ventas_fiado = Ventas.objects.filter(
+            id_caja=caja_activa.id_caja,
+            estado_de_pago__iexact='fiado'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+
+        ventas_caja_efectivo = Decimal(str(ventas_efectivo))
+        ventas_caja_fiado = Decimal(str(ventas_fiado))
+        monto_esperado = caja_activa.monto_inicial + ventas_caja_efectivo
+
+    return render(request, 'gestion_caja.html', {
+        'caja_activa': caja_activa,
+        'ventas_efectivo': ventas_caja_efectivo,
+        'ventas_fiado': ventas_caja_fiado,
+        'monto_esperado': monto_esperado,
+        'historial_cajas': historial_cajas,
+    })
+
+
+@login_required
+@requiere_perfil('Administrador', 'Vendedor')
+def abrir_caja(request):
+    if request.method == 'POST':
+        if Caja.objects.filter(estado='abierta').exists():
+            messages.warning(request, 'Ya existe una caja abierta en el sistema.')
+            return redirect('gestion_caja')
+
+        monto_inicial = Decimal(request.POST.get('monto_inicial', '0.00'))
+
+        Caja.objects.create(
+            usuario=request.user,
+            monto_inicial=monto_inicial,
+            estado='abierta'
+        )
+
+        messages.success(request, f'Caja abierta con un monto inicial de ${monto_inicial:.2f}')
+
+    return redirect('gestion_caja')
+
+
+@login_required
+@requiere_perfil('Administrador', 'Vendedor')
+def cerrar_caja(request):
+    if request.method == 'POST':
+        caja_activa = Caja.objects.filter(estado='abierta').last()
+
+        if not caja_activa:
+            messages.error(request, 'No hay ninguna caja abierta para cerrar.')
+            return redirect('gestion_caja')
+
+        monto_real = Decimal(request.POST.get('monto_real', '0.00'))
+        observaciones = request.POST.get('observaciones', '').strip()
+
+        ventas_efectivo = Ventas.objects.filter(
+            id_caja=caja_activa.id_caja,
+            estado_de_pago__iexact='pagado'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+
+        monto_esperado = caja_activa.monto_inicial + Decimal(str(ventas_efectivo))
+        diferencia = monto_real - monto_esperado
+
+        caja_activa.monto_final_esperado = monto_esperado
+        caja_activa.monto_final_real = monto_real
+        caja_activa.diferencia = diferencia
+        caja_activa.fecha_cierre = timezone.now()
+        caja_activa.estado = 'cerrada'
+        caja_activa.observaciones = observaciones
+        caja_activa.save()
+
+        if diferencia == Decimal('0.00'):
+            messages.success(request, 'Caja cerrada correctamente sin diferencias.')
+        elif diferencia > Decimal('0.00'):
+            messages.info(request, f'Caja cerrada con Sobrante de ${diferencia:.2f}.')
+        else:
+            messages.error(request, f'Caja cerrada con Faltante de ${abs(diferencia):.2f}.')
+
+    return redirect('gestion_caja')
+
+def requiere_perfil(*perfiles_permitidos):
+    """
+    Decorador para restringir vistas según el perfil del usuario.
+    Si es superusuario (admin de Django), siempre tiene acceso.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not request.user.is_authenticated:
+                return redirect('login')
+            
+            if request.user.is_superuser:
+                return _wrapped_view(request, *args, **kwargs)
+
+            perfil_usuario = getattr(request.user.id_perfil, 'nombre_perfil', '').lower() if hasattr(request.user, 'id_perfil') else ''
+            
+            perfiles_lower = [p.lower() for p in perfiles_permitidos]
+
+            if perfil_usuario in perfiles_lower or request.user.is_staff:
+                return view_func(request, *args, **kwargs)
+            else:
+                messages.error(request, 'No tiene permisos para acceder a esta sección.')
+                return redirect('inicio')
+        return _wrapped_view
+    return decorator
+
+def lista_productos(
+    request,
+):  
+    lista_productos = Productos.objects.all().order_by(
+        '-IDproducto'
+        
+)  
+    paginator = Paginator(lista_productos, 7)
+    page_number = request.GET.get('page')
+    productos = paginator.get_page(page_number)
+
+    context = {
+        'productos': productos,  
+    }
+    return render(request, 'tu_app/productos.html', context)
+    from .modelos import Descuento, Promocion
+from django.utils import timezone
+
+# --- MI LOGICA DE PROMO ---
+def aplicar_descuento(producto):
+    hoy = timezone.now().date()
+    desc = Descuento.objects.filter(activo=True, producto=producto, fecha_inicio__lte=hoy, fecha_fin__gte=hoy).first()
+    if not desc:
+        desc = Descuento.objects.filter(activo=True, categoria_nombre=producto.categoria, fecha_inicio__lte=hoy, fecha_fin__gte=hoy).first()
+    if desc and desc.esta_vigente():
+        return float(producto.precio) * (1 - desc.porcentaje / 100)
+    return float(producto.precio)
+
+def verificar_regalo_por_tapas(id_producto_tapa, cantidad_comprada):
+    hoy = timezone.now().date()
+    promos = Promocion.objects.filter(activa=True, producto_requisito_id=id_producto_tapa, fecha_inicio__lte=hoy, fecha_fin__gte=hoy)
+    for promo in promos:
+        if cantidad_comprada >= promo.cantidad_requisito:
+            return promo.producto_regalo
+    return None
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278

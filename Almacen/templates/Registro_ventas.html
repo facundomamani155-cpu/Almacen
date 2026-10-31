@@ -32,9 +32,17 @@
                         {% endfor %}
                     </div>
                 </div>
+<<<<<<< HEAD
                 <button type="button" class="btn-filter" id="sort-best-sellers" aria-pressed="false">
                     <i class="fa-solid fa-arrow-down-wide-short me-1" aria-hidden="true"></i>Más vendidos
                 </button>
+=======
+                {% if orden == 'mas_vendidos' %}
+                    <a href="?page=1" class="btn-filter btn-order" aria-pressed="true">Ordenar A-Z</a>
+                {% else %}
+                    <a href="?orden=mas_vendidos&page=1" class="btn-filter btn-order" aria-pressed="false">Más vendidos</a>
+                {% endif %}
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
             </div>
 
             <div class="product-list" id="product-list">
@@ -68,13 +76,50 @@
                     <div class="empty-products py-4 text-center text-muted">No hay productos con stock disponible en el almacén.</div>
                 {% endfor %}
             </div>
+<<<<<<< HEAD
             <div class="product-pagination" id="product-pagination" data-page-size="7" aria-label="Paginación de productos">
                 <button type="button" class="pagination-button" id="previous-products" aria-label="Página anterior">Anterior</button>
                 <span id="product-page-status" aria-live="polite"></span>
                 <button type="button" class="pagination-button" id="next-products" aria-label="Página siguiente">Siguiente</button>
             </div>
             <p class="empty-products py-4 text-center text-muted" id="no-matching-products" hidden>No se encontraron productos para esta búsqueda.</p>
+=======
+            {% if productos.paginator.num_pages > 1 %}
+                <nav aria-label="Paginación de productos" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if productos.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ productos.previous_page_number }}{% if orden %}&orden={{ orden }}{% endif %}">Anterior</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">Anterior</span>
+                            </li>
+                        {% endif %}
+
+                        {% for num in productos.paginator.page_range %}
+                            {% if productos.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > productos.number|add:'-3' and num < productos.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if orden %}&orden={{ orden }}{% endif %}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if productos.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ productos.next_page_number }}{% if orden %}&orden={{ orden }}{% endif %}">Siguiente</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">Siguiente</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
         </main>
+
 
         <aside class="cart-section">
             <h2 class="cart-title">Carrito de ventas</h2>

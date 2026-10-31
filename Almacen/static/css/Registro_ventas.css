@@ -92,8 +92,18 @@
     padding: 0.8rem 1.15rem;
 }
 
+<<<<<<< HEAD
 .btn-filter.active {
     background: var(--accent);
+=======
+.btn-order {
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.btn-order:hover {
+    color: #fff;
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
 }
 
 .filter-dropdown {

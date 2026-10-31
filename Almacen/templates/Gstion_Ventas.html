@@ -24,7 +24,11 @@
                     <option value="todos" {% if periodo == 'todos' %}selected{% endif %}> Todas</option>
                     <option value="semana" {% if periodo == 'semana' %}selected{% endif %}> Última semana</option>
                     <option value="mes" {% if periodo == 'mes' %}selected{% endif %}> Último mes</option>
+<<<<<<< HEAD
                     <option value="año" {% if periodo == 'año' %}selected{% endif %}> Este año</option>
+=======
+                    <option value="anio" {% if periodo == 'anio' or periodo == 'año' %}selected{% endif %}> Este año</option>
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
                 </select>
             </form>
             <a href="{% url 'registrar_venta' %}" class="btn btn-primary">
@@ -162,6 +166,7 @@
         </table>
     </div>
 
+<<<<<<< HEAD
     {% if page_obj.paginator.num_pages > 1 %}
     <nav class="mt-3" aria-label="Paginación de ventas">
         <ul class="pagination justify-content-center flex-wrap mb-0">
@@ -184,6 +189,34 @@
                     <span class="page-link">Siguiente</span>
                 {% endif %}
             </li>
+=======
+    {% if ventas.paginator.num_pages > 1 %}
+    <nav aria-label="Paginación de ventas" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if ventas.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?filtro={{ periodo|urlencode }}&page={{ ventas.previous_page_number }}">Anterior</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+            {% endif %}
+
+            {% for num in ventas.paginator.page_range %}
+                {% if ventas.number == num %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                {% elif num > ventas.number|add:'-3' and num < ventas.number|add:'3' %}
+                    <li class="page-item"><a class="page-link" href="?filtro={{ periodo|urlencode }}&page={{ num }}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if ventas.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?filtro={{ periodo|urlencode }}&page={{ ventas.next_page_number }}">Siguiente</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+            {% endif %}
+>>>>>>> 372981c0e8edbf61c6d689759ae526497624c278
         </ul>
     </nav>
     {% endif %}
