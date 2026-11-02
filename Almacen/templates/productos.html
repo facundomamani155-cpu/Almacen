@@ -156,33 +156,6 @@
                     <span class="page-link">Siguiente</span>
                 {% endif %}
             </li>
-=======
-    {% if productos.paginator.num_pages > 1 %}
-    <nav aria-label="Paginación del catálogo" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if productos.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ productos.previous_page_number }}&busqueda={{ busqueda|urlencode }}">Anterior</a>
-                </li>
-            {% else %}
-                <li class="page-item disabled"><span class="page-link">Anterior</span></li>
-            {% endif %}
-
-            {% for num in productos.paginator.page_range %}
-                {% if productos.number == num %}
-                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
-                {% elif num > productos.number|add:'-3' and num < productos.number|add:'3' %}
-                    <li class="page-item"><a class="page-link" href="?page={{ num }}&busqueda={{ busqueda|urlencode }}">{{ num }}</a></li>
-                {% endif %}
-            {% endfor %}
-
-            {% if productos.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ productos.next_page_number }}&busqueda={{ busqueda|urlencode }}">Siguiente</a>
-                </li>
-            {% else %}
-                <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
-            {% endif %}
         </ul>
     </nav>
     {% endif %}
@@ -203,48 +176,29 @@
 
 <script>
     const selectedIds = new Set();
-    document.addEventListener('click', function (event) {
-        const btn = event.target.closest('[data-circle-toggle]');
-        if (!btn) return;
+    const selectedIdsInput = document.getElementById('selectedIdsInput');
+    const borrarBtn = document.getElementById('btnEliminarMarcados');
 
-        const icon = btn.querySelector('i');
-        const row = btn.closest('tr');
-        const editLink = row?.querySelector('a[href*="detalle"]')?.href;
-        const productId = editLink ? editLink.split('/').filter(Boolean).pop() : null;
+    document.querySelectorAll('[data-circle-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const row = button.closest('tr');
+            const productId = row.querySelector('form[action*="cambiar_estado/"]').action.split('/').filter(Boolean).pop();
+            const selected = button.dataset.selected === 'true';
 
-        if (!productId) return;
+            button.dataset.selected = String(!selected);
+            button.querySelector('i').className = !selected
+                ? 'fa-solid fa-circle-check text-primary'
+                : 'fa-regular fa-circle';
 
-        const wasSelected = btn.dataset.selected === 'true';
-        const nextSelected = !wasSelected;
+            if (!selected) {
+                selectedIds.add(productId);
+            } else {
+                selectedIds.delete(productId);
+            }
 
-        btn.dataset.selected = String(nextSelected);
-        icon.classList.remove('fa-regular', 'fa-solid');
-        icon.classList.add(nextSelected ? 'fa-solid' : 'fa-regular', 'fa-circle');
-
-        if (nextSelected) {
-            selectedIds.add(productId);
-        } else {
-            selectedIds.delete(productId);
-        }
-
-        const input = document.getElementById('selectedIdsInput');
-        const borrarBtn = document.getElementById('btnEliminarMarcados');
-        if (input) input.value = Array.from(selectedIds).join(',');
-        if (borrarBtn) {
-            borrarBtn.disabled = selectedIds.size === 0;
+            selectedIdsInput.value = Array.from(selectedIds).join(',');
             borrarBtn.classList.toggle('opacity-50', selectedIds.size === 0);
-        }
-
- {% verbatim %}
- <script>
-    document.addEventListener('click', function (event) {
-        const input = document.getElementById('selectedIdsInput');
-        const borrarBtn = document.getElementById('btnEliminarMarcados');
-        if (input) input.value = Array.from(selectedIds).join(',');
-        if (borrarBtn) {
             borrarBtn.disabled = selectedIds.size === 0;
-            borrarBtn.classList.toggle('opacity-50', selectedIds.size === 0);
-        
-    );
+        });
+    });
 </script>
-{% endverbatim %}
